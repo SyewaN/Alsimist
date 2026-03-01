@@ -7,7 +7,7 @@
 const API_BASE = (
     window.HYDROSENSE_API_BASE ||
     localStorage.getItem('hydrosense-api-base') ||
-    'https://vpn.syewan.ynh.fr/pandora/obruk-api'
+    'https://vpn.syewan.ynh.fr/esp32-monitor/obruk-api'
 ).replace(/\/+$/, '');
 const API_KEY = window.HYDROSENSE_API_KEY || localStorage.getItem('hydrosense-api-key') || '';
 const INGEST_ENDPOINT = `${API_BASE}/data`;
@@ -15,7 +15,7 @@ const LATEST_ENDPOINT = `${API_BASE}/data/latest.json`;
 const HISTORY_ENDPOINT = `${API_BASE}/data/history.json`;
 const DASHBOARD_ENDPOINT = window.HYDROSENSE_DASHBOARD_URL ||
     localStorage.getItem('hydrosense-dashboard-url') ||
-    'https://vpn.syewan.ynh.fr/api/dashboard?limit=100';
+    '';
 const STORAGE_KEY = 'hydrosense-ble-segments';
 const ESP_LOCATION_KEY = 'hydrosense-esp-location';
 const ESP_SENSOR_ID = 'esp-t1';
@@ -466,10 +466,10 @@ class App {
     async fetchDashboardHistory() {
         const headers = { Accept: 'application/json', ...(API_KEY ? { 'x-api-key': API_KEY } : {}) };
         const endpoints = [
-            DASHBOARD_ENDPOINT,
             HISTORY_ENDPOINT,
+            API_BASE + '/data/history.json',
             API_BASE + '/data?source=external',
-            API_BASE + '/data/history.json'
+            LATEST_ENDPOINT
         ];
 
         const normalizePayloadToArray = (payload) => {
