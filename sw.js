@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'hydrosense-v5';
+const CACHE_VERSION = 'hydrosense-v6';
 const APP_SHELL_CACHE = `app-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
@@ -40,7 +40,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
+  if (!/^https?:$/.test(url.protocol)) return;
+
   const isApiRequest =
     url.pathname.includes('/obruk-api/') ||
     url.pathname.endsWith('/data/latest.json') ||
@@ -48,11 +51,9 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigationRequest = request.mode === 'navigate';
 
-  // API isteklerinde her zaman ağdan oku; cache sadece fallback olsun.
   if (isApiRequest) {
     event.respondWith(
       fetch(request)
-        .then((networkResponse) => networkResponse)
         .catch(async () => {
           const cached = await caches.match(request);
           if (cached) return cached;

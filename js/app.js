@@ -7,7 +7,7 @@
 const API_BASE = (
     window.HYDROSENSE_API_BASE ||
     localStorage.getItem('hydrosense-api-base') ||
-    '/obruk-api'
+    'https://vpn.syewan.ynh.fr/pandora/obruk-api'
 ).replace(/\/+$/, '');
 const API_KEY = window.HYDROSENSE_API_KEY || localStorage.getItem('hydrosense-api-key') || '';
 const INGEST_ENDPOINT = `${API_BASE}/data`;
