@@ -464,39 +464,67 @@ class App {
     }
 
     async fetchDashboardHistory() {
-        const headers = API_KEY ? { 'x-api-key': API_KEY } : {};
-        const res = await fetch(DASHBOARD_ENDPOINT, {
-            cache: 'no-store',
-            headers
-        });
-        if (!res.ok) {
-            throw new Error(`Dashboard fetch HTTP ${res.status}`);
-        }
-        const payload = await res.json();
-        console.log('API DATA:', payload);
-
-        if (Array.isArray(payload)) return payload;
-        if (!payload || typeof payload !== 'object') return [];
-
-        const candidates = [
-            payload.data,
-            payload.rows,
-            payload.items,
-            payload.history,
-            payload.records,
-            payload.readings,
-            payload.dashboard
+        const headers = { Accept: 'application/json', ...(API_KEY ? { 'x-api-key': API_KEY } : {}) };
+        const endpoints = [
+            DASHBOARD_ENDPOINT,
+            HISTORY_ENDPOINT,
+            API_BASE + '/data?source=external',
+            API_BASE + '/data/history.json'
         ];
-        for (const candidate of candidates) {
-            if (Array.isArray(candidate)) return candidate;
+
+        const normalizePayloadToArray = (payload) => {
+            if (Array.isArray(payload)) return payload;
+            if (!payload || typeof payload !== 'object') return [];
+
+            const candidates = [
+                payload.data,
+                payload.rows,
+                payload.items,
+                payload.history,
+                payload.records,
+                payload.readings,
+                payload.dashboard
+            ];
+            for (const candidate of candidates) {
+                if (Array.isArray(candidate)) return candidate;
+                if (candidate && Array.isArray(candidate.data)) return candidate.data;
+            }
+
+            if (payload.latest && typeof payload.latest === 'object') return [payload.latest];
+            if (payload.soil !== undefined || payload.salinity !== undefined) return [payload];
+            return [];
+        };
+
+        const parseResponse = async (res, endpoint) => {
+            if (!res.ok) {
+                throw new Error('Dashboard fetch HTTP ' + res.status + ' (' + endpoint + ')');
+            }
+            const text = await res.text();
+            if (!text) return [];
+            try {
+                return JSON.parse(text);
+            } catch (_err) {
+                const preview = text.slice(0, 120).replace(/\s+/g, ' ');
+                throw new Error('JSON parse failed (' + endpoint + '): ' + preview);
+            }
+        };
+
+        let lastError = null;
+        for (const endpoint of endpoints) {
+            try {
+                const res = await fetch(endpoint, { cache: 'no-store', headers });
+                const payload = await parseResponse(res, endpoint);
+                const rows = normalizePayloadToArray(payload);
+                if (rows.length) {
+                    console.log('API DATA source:', endpoint, 'rows:', rows.length);
+                    return rows;
+                }
+            } catch (err) {
+                lastError = err;
+            }
         }
 
-        if (payload.latest && typeof payload.latest === 'object') {
-            return [payload.latest];
-        }
-        if (payload.soil !== undefined || payload.salinity !== undefined) {
-            return [payload];
-        }
+        if (lastError) throw lastError;
         return [];
     }
 

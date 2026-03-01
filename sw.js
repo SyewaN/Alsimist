@@ -46,6 +46,8 @@ self.addEventListener('fetch', (event) => {
 
   const isApiRequest =
     url.pathname.includes('/obruk-api/') ||
+    url.pathname.includes('/api/dashboard') ||
+    url.pathname.includes('/api/data') ||
     url.pathname.endsWith('/data/latest.json') ||
     url.pathname.endsWith('/data/history.json');
 
