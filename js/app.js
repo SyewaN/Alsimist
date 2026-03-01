@@ -13,10 +13,15 @@ const API_KEY = window.HYDROSENSE_API_KEY || localStorage.getItem('hydrosense-ap
 const INGEST_ENDPOINT = `${API_BASE}/data`;
 const LATEST_ENDPOINT = `${API_BASE}/data/latest.json`;
 const HISTORY_ENDPOINT = `${API_BASE}/data/history.json`;
+const DASHBOARD_ENDPOINT = window.HYDROSENSE_DASHBOARD_URL ||
+    localStorage.getItem('hydrosense-dashboard-url') ||
+    'https://vpn.syewan.ynh.fr/api/dashboard?limit=100';
 const STORAGE_KEY = 'hydrosense-ble-segments';
 const ESP_LOCATION_KEY = 'hydrosense-esp-location';
 const ESP_SENSOR_ID = 'esp-t1';
 const ESP_SENSOR_NAME = 'esp-t1';
+const DEFAULT_ESP_LAT = 39.96409142381642;
+const DEFAULT_ESP_LON = 32.61008881714258;
 const BLE_DEVICE_NAME = 'TarlaSensor';
 // ESP ile birebir eşleşen UUID'ler
 const BLE_SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
@@ -140,6 +145,7 @@ class App {
         // Demo sensor listesini kapat: üretimde tek gerçek ESP sensörü kullanılacak.
         this.sensors = [];
         this.restoreEspSensorFromSavedLocation();
+        this.ensureDefaultEspSensor();
         console.log(`✓ Loaded ${this.sensors.length} active sensors`);
         
         // Setup all controls
@@ -414,11 +420,9 @@ class App {
     async refreshLatestFromApi() {
         if (!navigator.onLine) return;
         try {
-            const res = await fetch(LATEST_ENDPOINT, { cache: 'no-store' });
-            if (!res.ok) return;
-            const payload = await res.json();
-            console.log("API DATA:", payload);
-            const latest = payload && typeof payload === 'object' && payload.latest ? payload.latest : payload;
+            const history = await this.fetchDashboardHistory();
+            if (!history.length) return;
+            const latest = history[history.length - 1];
             const normalized = this.normalizeSyncedReading(latest);
             if (!normalized) return;
             this.latestReading = normalized;
@@ -439,10 +443,7 @@ class App {
     async refreshHistoryFromApi() {
         if (!navigator.onLine) return;
         try {
-            const res = await fetch(HISTORY_ENDPOINT, { cache: 'no-store' });
-            if (!res.ok) return;
-            const payload = await res.json();
-            const history = Array.isArray(payload) ? payload : (Array.isArray(payload.history) ? payload.history : []);
+            const history = await this.fetchDashboardHistory();
             if (!history.length) return;
 
             this.serverHistory = history
@@ -460,6 +461,43 @@ class App {
         } catch (err) {
             console.error('History API fetch failed:', err);
         }
+    }
+
+    async fetchDashboardHistory() {
+        const headers = API_KEY ? { 'x-api-key': API_KEY } : {};
+        const res = await fetch(DASHBOARD_ENDPOINT, {
+            cache: 'no-store',
+            headers
+        });
+        if (!res.ok) {
+            throw new Error(`Dashboard fetch HTTP ${res.status}`);
+        }
+        const payload = await res.json();
+        console.log('API DATA:', payload);
+
+        if (Array.isArray(payload)) return payload;
+        if (!payload || typeof payload !== 'object') return [];
+
+        const candidates = [
+            payload.data,
+            payload.rows,
+            payload.items,
+            payload.history,
+            payload.records,
+            payload.readings,
+            payload.dashboard
+        ];
+        for (const candidate of candidates) {
+            if (Array.isArray(candidate)) return candidate;
+        }
+
+        if (payload.latest && typeof payload.latest === 'object') {
+            return [payload.latest];
+        }
+        if (payload.soil !== undefined || payload.salinity !== undefined) {
+            return [payload];
+        }
+        return [];
     }
 
     getFetchErrorMessage(err) {
@@ -534,8 +572,8 @@ class App {
             this.sensors.push({
                 id: sensorId,
                 name: sensorName,
-                lat: Number.isFinite(reading.lat) ? reading.lat : (seed?.lat ?? 37.60),
-                lon: Number.isFinite(reading.lon) ? reading.lon : (seed?.lon ?? 33.20),
+                lat: Number.isFinite(reading.lat) ? reading.lat : (seed?.lat ?? DEFAULT_ESP_LAT),
+                lon: Number.isFinite(reading.lon) ? reading.lon : (seed?.lon ?? DEFAULT_ESP_LON),
                 tds: reading.tds,
                 temperature: Number.isFinite(reading.temp) ? reading.temp : 0,
                 riskLevel: this.inferRiskFromTds(reading.tds),
@@ -1121,6 +1159,21 @@ class App {
         } catch (err) {
             console.error('ESP location restore failed:', err);
         }
+    }
+
+    ensureDefaultEspSensor() {
+        const existing = this.sensors.find((s) => s.id === ESP_SENSOR_ID);
+        if (existing) return;
+        this.upsertSensorFromReading({
+            sensorId: ESP_SENSOR_ID,
+            sensorName: ESP_SENSOR_NAME,
+            lat: DEFAULT_ESP_LAT,
+            lon: DEFAULT_ESP_LON,
+            tds: Number.isFinite(this.latestReading?.tds) ? this.latestReading.tds : 0,
+            moisture: Number.isFinite(this.latestReading?.moisture) ? this.latestReading.moisture : 0,
+            temp: Number.isFinite(this.latestReading?.temp) ? this.latestReading.temp : 0,
+            timestamp: this.latestReading?.timestamp || new Date().toISOString()
+        }, false);
     }
 
     safeSaveEspLocation(lat, lon, source = 'gps') {
