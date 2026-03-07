@@ -15,10 +15,13 @@ const BLE_SYNC_API_KEY = window.BLE_SYNC_API_KEY ||
 const BLE_SYNC_API_URL = window.BLE_SYNC_API_URL ||
     localStorage.getItem('ble-sync-api-url') ||
     `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data`;
+const BLE_SYNC_READ_URL = window.BLE_SYNC_READ_URL ||
+    localStorage.getItem('ble-sync-read-url') ||
+    `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*`;
 const BLE_SYNC_READ_ENABLED = (
     window.BLE_SYNC_READ_ENABLED ??
     localStorage.getItem('ble-sync-read-enabled') ??
-    'false'
+    'true'
 ) === 'true';
 const DASHBOARD_ENDPOINT = window.HYDROSENSE_DASHBOARD_URL ||
     localStorage.getItem('hydrosense-dashboard-url') ||
@@ -442,11 +445,17 @@ class App {
     }
 
     toApiPayload(data) {
-        const saltValue = Number.isFinite(data?.tds) ? data.tds : (Number.isFinite(data?.salinity) ? data.salinity : null);
-        const sicaklikValue = Number.isFinite(data?.temp) ? data.temp : (Number.isFinite(data?.sicaklik) ? data.sicaklik : null);
+        const tempValue = Number.isFinite(data?.temp) ? data.temp : null;
+        const tdsRawValue = Number.isFinite(data?.tdsRaw)
+            ? data.tdsRaw
+            : (Number.isFinite(data?.tds_raw) ? data.tds_raw : null);
+        const tdsCompValue = Number.isFinite(data?.tdsComp)
+            ? data.tdsComp
+            : (Number.isFinite(data?.tds_comp) ? data.tds_comp : null);
         return {
-            salt: saltValue,
-            sicaklik: sicaklikValue
+            temp: tempValue,
+            tds_raw: tdsRawValue,
+            tds_comp: tdsCompValue
         };
     }
 
@@ -493,7 +502,9 @@ class App {
         // Backend tek ölçüm objesi beklediği için sırayla gönder.
         for (const row of queue) {
             const payload = this.toApiPayload(row);
-            const hasAnyValue = Number.isFinite(payload.salt) || Number.isFinite(payload.sicaklik);
+            const hasAnyValue = Number.isFinite(payload.temp) ||
+                Number.isFinite(payload.tds_raw) ||
+                Number.isFinite(payload.tds_comp);
             if (!hasAnyValue) {
                 // Boş/bozuk satırı tekrar denemeye sokma.
                 skippedCount += 1;
@@ -613,8 +624,8 @@ class App {
             ...window.BLE_SYNC_API_HEADERS
         };
         const endpoints = [
-            BLE_SYNC_API_URL,
-            `${BLE_SYNC_BASE_URL}/data`
+            BLE_SYNC_READ_URL,
+            `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*`
         ];
 
         const normalizePayloadToArray = (payload) => {

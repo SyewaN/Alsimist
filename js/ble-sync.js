@@ -178,8 +178,9 @@
     const queue = readLocal();
     if (!queue.length) return { sent: 0, remaining: 0 };
     const payload = queue.map((row) => ({
-      salt: Number.isFinite(row?.tds) ? row.tds : null,
-      sicaklik: Number.isFinite(row?.temp) ? row.temp : null
+      temp: Number.isFinite(row?.temp) ? row.temp : null,
+      tds_raw: Number.isFinite(row?.tdsRaw) ? row.tdsRaw : null,
+      tds_comp: Number.isFinite(row?.tdsComp) ? row.tdsComp : null
     }));
 
     const apiUrl = state.config.apiUrl;
