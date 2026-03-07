@@ -13,6 +13,17 @@ const API_KEY = window.HYDROSENSE_API_KEY || localStorage.getItem('hydrosense-ap
 const INGEST_ENDPOINT = `${API_BASE}/data`;
 const LATEST_ENDPOINT = `${API_BASE}/data/latest.json`;
 const HISTORY_ENDPOINT = `${API_BASE}/data/history.json`;
+const BLE_SYNC_BASE_URL = (
+    window.BLE_SYNC_BASE_URL ||
+    localStorage.getItem('ble-sync-base-url') ||
+    'https://flnjitprqlxytbcaoptc.supabase.co'
+).replace(/\/+$/, '');
+const BLE_SYNC_API_KEY = window.BLE_SYNC_API_KEY ||
+    localStorage.getItem('ble-sync-api-key') ||
+    'sb_publishable_5_seWugPhmNDYtGO24NLFQ_ndcG19aL';
+const BLE_SYNC_API_URL = window.BLE_SYNC_API_URL ||
+    localStorage.getItem('ble-sync-api-url') ||
+    `${BLE_SYNC_BASE_URL}/data`;
 const DASHBOARD_ENDPOINT = window.HYDROSENSE_DASHBOARD_URL ||
     localStorage.getItem('hydrosense-dashboard-url') ||
     '';
@@ -26,7 +37,6 @@ const BLE_DEVICE_NAME = 'TarlaSensor';
 // ESP ile birebir eşleşen UUID'ler
 const BLE_SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
 const BLE_CHARACTERISTIC_UUID = '87654321-4321-4321-4321-cba987654321';
-const BLE_SYNC_API_URL = INGEST_ENDPOINT;
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -34,14 +44,26 @@ window.BLE_SYNC_DEVICE_NAME = BLE_DEVICE_NAME;
 window.BLE_SYNC_SERVICE_UUID = BLE_SERVICE_UUID;
 window.BLE_SYNC_CHARACTERISTIC_UUID = BLE_CHARACTERISTIC_UUID;
 window.BLE_SYNC_LOCAL_KEY = STORAGE_KEY;
-window.BLE_SYNC_API_HEADERS = API_KEY ? { 'x-api-key': API_KEY } : {};
+window.BLE_SYNC_API_HEADERS = BLE_SYNC_API_KEY
+    ? {
+        'x-api-key': BLE_SYNC_API_KEY,
+        apikey: BLE_SYNC_API_KEY,
+        Authorization: `Bearer ${BLE_SYNC_API_KEY}`
+    }
+    : {};
 
 function sendToAPI(data) {
     const payload = data;
-    const endpoints = [INGEST_ENDPOINT, `${API_BASE}/sensor`];
-    const authVariants = API_KEY
+    const endpoints = [BLE_SYNC_API_URL, `${BLE_SYNC_BASE_URL}/sensor`];
+    const authVariants = BLE_SYNC_API_KEY
         ? [
-            { "Content-Type": "application/json", "x-api-key": API_KEY },
+            {
+                "Content-Type": "application/json",
+                "x-api-key": BLE_SYNC_API_KEY,
+                apikey: BLE_SYNC_API_KEY,
+                Authorization: `Bearer ${BLE_SYNC_API_KEY}`
+            },
+            { "Content-Type": "application/json", "x-api-key": BLE_SYNC_API_KEY },
             { "Content-Type": "application/json" }
         ]
         : [{ "Content-Type": "application/json" }];
@@ -681,7 +703,7 @@ class App {
         try {
             window.BLESync.init({
                 apiUrl: BLE_SYNC_API_URL,
-                headers: { 'x-api-key': API_KEY }
+                headers: { ...window.BLE_SYNC_API_HEADERS }
             });
         } catch (err) {
             console.error("BLESync init failed:", err);
