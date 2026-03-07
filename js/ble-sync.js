@@ -62,8 +62,8 @@
   }
 
   function normalizeReading(raw) {
-    const tdsRaw = parseNumeric(raw?.tds_raw ?? raw?.tdsRaw ?? raw?.tds ?? raw?.TDS ?? raw?.tdsValue ?? raw?.salinity);
-    const tdsComp = parseNumeric(raw?.tds_comp ?? raw?.tdsComp ?? raw?.tds_corrected ?? raw?.tdsCorrected ?? raw?.tds ?? raw?.TDS ?? raw?.tdsValue ?? raw?.salinity);
+    const tdsRaw = parseNumeric(raw?.tds_raw ?? raw?.tdsRaw ?? raw?.tds ?? raw?.TDS ?? raw?.tdsValue ?? raw?.salinity ?? raw?.salt);
+    const tdsComp = parseNumeric(raw?.tds_comp ?? raw?.tdsComp ?? raw?.tds_corrected ?? raw?.tdsCorrected ?? raw?.tds ?? raw?.TDS ?? raw?.tdsValue ?? raw?.salinity ?? raw?.salt);
     const moisture = parseNumeric(raw?.moisture ?? raw?.humidity ?? raw?.nem ?? raw?.soil);
     const temp = parseNumeric(raw?.temp ?? raw?.temperature ?? raw?.sicaklik);
     const time = parseNumeric(raw?.time ?? raw?.device_time);
@@ -178,9 +178,9 @@
     const queue = readLocal();
     if (!queue.length) return { sent: 0, remaining: 0 };
     const payload = queue.map((row) => ({
-      temp: Number.isFinite(row?.temp) ? row.temp : null,
-      tds_raw: Number.isFinite(row?.tdsRaw) ? row.tdsRaw : null,
-      tds_comp: Number.isFinite(row?.tdsComp) ? row.tdsComp : null
+      salt: Number.isFinite(row?.tdsComp) ? row.tdsComp : (Number.isFinite(row?.tdsRaw) ? row.tdsRaw : null),
+      sicaklik: Number.isFinite(row?.temp) ? row.temp : null,
+      sensor_id: row?.sensorId || row?.sensor_id || 'esp-t1'
     }));
 
     const apiUrl = state.config.apiUrl;

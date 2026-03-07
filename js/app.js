@@ -17,7 +17,7 @@ const BLE_SYNC_API_URL = window.BLE_SYNC_API_URL ||
     `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data`;
 const BLE_SYNC_READ_URL = window.BLE_SYNC_READ_URL ||
     localStorage.getItem('ble-sync-read-url') ||
-    `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*`;
+    `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*&order=id.desc&limit=200`;
 const BLE_SYNC_READ_ENABLED = (
     window.BLE_SYNC_READ_ENABLED ??
     localStorage.getItem('ble-sync-read-enabled') ??
@@ -311,8 +311,8 @@ class App {
 
     normalizeSensorReading(input) {
         if (!input || typeof input !== 'object') return null;
-        const tdsRaw = this.parseNumeric(input.tds_raw ?? input.tdsRaw ?? input.tds ?? input.TDS ?? input.tdsValue ?? input.salinity);
-        const tdsComp = this.parseNumeric(input.tds_comp ?? input.tdsComp ?? input.tds_corrected ?? input.tdsCorrected ?? input.tds ?? input.TDS ?? input.tdsValue ?? input.salinity);
+        const tdsRaw = this.parseNumeric(input.tds_raw ?? input.tdsRaw ?? input.tds ?? input.TDS ?? input.tdsValue ?? input.salinity ?? input.salt);
+        const tdsComp = this.parseNumeric(input.tds_comp ?? input.tdsComp ?? input.tds_corrected ?? input.tdsCorrected ?? input.tds ?? input.TDS ?? input.tdsValue ?? input.salinity ?? input.salt);
         const temp = this.parseNumeric(input.temp ?? input.temperature ?? input.sicaklik);
         const moisture = this.parseNumeric(input.moisture ?? input.humidity ?? input.nem ?? input.soil);
         const time = this.parseNumeric(input.time ?? input.device_time);
@@ -445,17 +445,19 @@ class App {
     }
 
     toApiPayload(data) {
-        const tempValue = Number.isFinite(data?.temp) ? data.temp : null;
-        const tdsRawValue = Number.isFinite(data?.tdsRaw)
-            ? data.tdsRaw
-            : (Number.isFinite(data?.tds_raw) ? data.tds_raw : null);
-        const tdsCompValue = Number.isFinite(data?.tdsComp)
+        const sicaklikValue = Number.isFinite(data?.temp)
+            ? data.temp
+            : (Number.isFinite(data?.sicaklik) ? data.sicaklik : null);
+        const saltValue = Number.isFinite(data?.tdsComp)
             ? data.tdsComp
-            : (Number.isFinite(data?.tds_comp) ? data.tds_comp : null);
+            : (Number.isFinite(data?.tdsRaw)
+                ? data.tdsRaw
+                : (Number.isFinite(data?.salt) ? data.salt : null));
+        const sensorId = data?.sensorId || data?.sensor_id || ESP_SENSOR_ID;
         return {
-            temp: tempValue,
-            tds_raw: tdsRawValue,
-            tds_comp: tdsCompValue
+            salt: saltValue,
+            sicaklik: sicaklikValue,
+            sensor_id: sensorId
         };
     }
 
@@ -502,9 +504,7 @@ class App {
         // Backend tek ölçüm objesi beklediği için sırayla gönder.
         for (const row of queue) {
             const payload = this.toApiPayload(row);
-            const hasAnyValue = Number.isFinite(payload.temp) ||
-                Number.isFinite(payload.tds_raw) ||
-                Number.isFinite(payload.tds_comp);
+            const hasAnyValue = Number.isFinite(payload.salt) || Number.isFinite(payload.sicaklik);
             if (!hasAnyValue) {
                 // Boş/bozuk satırı tekrar denemeye sokma.
                 skippedCount += 1;
@@ -625,7 +625,7 @@ class App {
         };
         const endpoints = [
             BLE_SYNC_READ_URL,
-            `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*`
+            `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*&order=id.desc&limit=200`
         ];
 
         const normalizePayloadToArray = (payload) => {
