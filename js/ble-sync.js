@@ -193,19 +193,21 @@
     let sent = 0;
     for (const row of payload) {
       let res;
+      let raw = '';
       try {
         res = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...state.config.headers },
           body: JSON.stringify(row)
         });
+        raw = await res.text();
       } catch (err) {
         emit(onStatus, 'Sunucuya erisilemiyor (network/CORS)');
         throw err;
       }
 
       if (!res.ok) {
-        throw new Error(`Sunucuya gönderim başarısız: ${res.status}`);
+        throw new Error(`Sunucuya gönderim başarısız: ${res.status} ${raw || ''}`.trim());
       }
       sent += 1;
     }
@@ -244,7 +246,9 @@
         emit(onStatus, '✅ Gönderildi!');
       } catch (err) {
         // BLE okuma başarılıysa veriyi localde tut ve sync'i düşürme.
-        emit(onStatus, 'BLE okundu, gönderim beklemede');
+        const msg = String(err?.message || err || 'gonderim beklemede');
+        emit(onStatus, `BLE okundu, gonderim beklemede: ${msg}`);
+        console.error('BLE upload failed:', err);
       }
       return readings[readings.length - 1] || null;
     },

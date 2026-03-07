@@ -12,12 +12,10 @@ const BLE_SYNC_BASE_URL = (
 const BLE_SYNC_API_KEY = window.BLE_SYNC_API_KEY ||
     localStorage.getItem('ble-sync-api-key') ||
     'sb_publishable_5_seWugPhmNDYtGO24NLFQ_ndcG19aL';
-const BLE_SYNC_API_URL = window.BLE_SYNC_API_URL ||
-    localStorage.getItem('ble-sync-api-url') ||
-    `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data`;
-const BLE_SYNC_READ_URL = window.BLE_SYNC_READ_URL ||
-    localStorage.getItem('ble-sync-read-url') ||
-    `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*&order=id.desc&limit=200`;
+const BLE_SYNC_DEFAULT_API_URL = `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data`;
+const BLE_SYNC_DEFAULT_READ_URL = `${BLE_SYNC_BASE_URL}/rest/v1/sensor_data?select=*&order=id.desc&limit=200`;
+const BLE_SYNC_API_URL = window.BLE_SYNC_API_URL || BLE_SYNC_DEFAULT_API_URL;
+const BLE_SYNC_READ_URL = window.BLE_SYNC_READ_URL || BLE_SYNC_DEFAULT_READ_URL;
 const BLE_SYNC_READ_ENABLED = (
     window.BLE_SYNC_READ_ENABLED ??
     localStorage.getItem('ble-sync-read-enabled') ??
@@ -38,6 +36,18 @@ const BLE_SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
 const BLE_CHARACTERISTIC_UUID = '87654321-4321-4321-4321-cba987654321';
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+
+// Eski localStorage override'lari yanlis endpoint'e tasiyabildigi icin temizle.
+try {
+    const legacyWriteUrl = localStorage.getItem('ble-sync-api-url');
+    if (legacyWriteUrl && legacyWriteUrl !== BLE_SYNC_DEFAULT_API_URL) {
+        localStorage.removeItem('ble-sync-api-url');
+    }
+    const legacyReadUrl = localStorage.getItem('ble-sync-read-url');
+    if (legacyReadUrl && legacyReadUrl !== BLE_SYNC_DEFAULT_READ_URL) {
+        localStorage.removeItem('ble-sync-read-url');
+    }
+} catch (_) {}
 
 window.BLE_SYNC_DEVICE_NAME = BLE_DEVICE_NAME;
 window.BLE_SYNC_SERVICE_UUID = BLE_SERVICE_UUID;
