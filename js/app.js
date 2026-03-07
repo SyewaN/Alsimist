@@ -3,16 +3,7 @@
  * Main application controller with theme, panel, map, and chart management
  */
 
-// PM2 backend adresi: window.HYDROSENSE_API_BASE veya localStorage('hydrosense-api-base')
-const API_BASE = (
-    window.HYDROSENSE_API_BASE ||
-    localStorage.getItem('hydrosense-api-base') ||
-    'https://vpn.syewan.ynh.fr/esp32-monitor/obruk-api'
-).replace(/\/+$/, '');
-const API_KEY = window.HYDROSENSE_API_KEY || localStorage.getItem('hydrosense-api-key') || '';
-const INGEST_ENDPOINT = `${API_BASE}/data`;
-const LATEST_ENDPOINT = `${API_BASE}/data/latest.json`;
-const HISTORY_ENDPOINT = `${API_BASE}/data/history.json`;
+// BLE senkronizasyonu tamamen Supabase tabanlı çalışır.
 const BLE_SYNC_BASE_URL = (
     window.BLE_SYNC_BASE_URL ||
     localStorage.getItem('ble-sync-base-url') ||
@@ -24,6 +15,11 @@ const BLE_SYNC_API_KEY = window.BLE_SYNC_API_KEY ||
 const BLE_SYNC_API_URL = window.BLE_SYNC_API_URL ||
     localStorage.getItem('ble-sync-api-url') ||
     `${BLE_SYNC_BASE_URL}/data`;
+const BLE_SYNC_READ_ENABLED = (
+    window.BLE_SYNC_READ_ENABLED ??
+    localStorage.getItem('ble-sync-read-enabled') ??
+    'false'
+) === 'true';
 const DASHBOARD_ENDPOINT = window.HYDROSENSE_DASHBOARD_URL ||
     localStorage.getItem('hydrosense-dashboard-url') ||
     '';
@@ -566,7 +562,7 @@ class App {
      * Sunucuda işlenmiş en güncel veriyi alıp ekrana yansıtır.
      */
     async refreshLatestFromApi() {
-        if (!navigator.onLine) return;
+        if (!BLE_SYNC_READ_ENABLED || !navigator.onLine) return;
         try {
             const history = await this.fetchDashboardHistory();
             if (!history.length) return;
@@ -589,7 +585,7 @@ class App {
      * Sunucudaki geçmiş veriyi çekip grafikleri dinamik günceller.
      */
     async refreshHistoryFromApi() {
-        if (!navigator.onLine) return;
+        if (!BLE_SYNC_READ_ENABLED || !navigator.onLine) return;
         try {
             const history = await this.fetchDashboardHistory();
             if (!history.length) return;
@@ -624,12 +620,13 @@ class App {
     }
 
     async fetchDashboardHistory() {
-        const headers = { Accept: 'application/json', ...(API_KEY ? { 'x-api-key': API_KEY } : {}) };
+        const headers = {
+            Accept: 'application/json',
+            ...window.BLE_SYNC_API_HEADERS
+        };
         const endpoints = [
-            HISTORY_ENDPOINT,
-            API_BASE + '/data/history.json',
-            API_BASE + '/data?source=external',
-            LATEST_ENDPOINT
+            BLE_SYNC_API_URL,
+            `${BLE_SYNC_BASE_URL}/data`
         ];
 
         const normalizePayloadToArray = (payload) => {
@@ -684,7 +681,9 @@ class App {
             }
         }
 
-        if (lastError) throw lastError;
+        if (lastError) {
+            console.warn('Dashboard read skipped:', lastError);
+        }
         return [];
     }
 
