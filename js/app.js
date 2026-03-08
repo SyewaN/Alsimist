@@ -588,7 +588,7 @@ class App {
         try {
             const history = await this.fetchDashboardHistory();
             if (!history.length) return;
-            const latest = history[history.length - 1];
+            const latest = history[0];
             const normalized = this.normalizeSyncedReading(latest);
             if (!normalized) return;
             this.latestReading = normalized;
