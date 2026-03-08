@@ -137,6 +137,7 @@ class App {
         this.weatherHistory = [];
         this.weatherNow = null;
         this.charts = {};
+        this.statusLockUntil = 0;
         this.onCharacteristicChanged = this.onCharacteristicChanged.bind(this);
         this.init();
     }
@@ -852,7 +853,7 @@ class App {
                         }
                         if (uploadError) {
                             const msg = String(uploadError?.message || uploadError || 'gonderim beklemede');
-                            this.updateDataStatus(`BLE okundu, gonderim beklemede: ${msg}`);
+                            this.showErrorStatus(`BLE okundu, gonderim beklemede: ${msg}`);
                         } else {
                             this.updateDataStatus('✅ Gönderildi!');
                         }
@@ -878,7 +879,7 @@ class App {
                         this.bleConnected = false;
                         this.updateConnectionStatus('Cihaz bağlı değil');
                         const msg = fallbackErr && fallbackErr.message ? fallbackErr.message : (err && err.message ? err.message : 'Eşitleme hatası');
-                        this.updateDataStatus('❌ ' + msg);
+                        this.showErrorStatus(msg);
                         console.error('Sync failed:', err);
                         console.error('Direct BLE fallback failed:', fallbackErr);
                     }
@@ -895,7 +896,7 @@ class App {
                     await this.sendStoredDataToServer();
                 } catch (err) {
                     const msg = err && err.message ? err.message : 'Sunucuya gönderim başarısız';
-                    this.updateDataStatus(`Sunucuya gönderim başarısız: ${msg}`);
+                    this.showErrorStatus(`Sunucuya gönderim başarısız: ${msg}`);
                     console.error('Manual upload failed:', err);
                 } finally {
                     sendBtn.disabled = false;
@@ -927,9 +928,27 @@ class App {
         if (el) el.textContent = text;
     }
 
-    updateDataStatus(customMessage = '') {
+    showErrorStatus(message, holdMs = 20000) {
+        const text = String(message || 'Bilinmeyen hata');
+        const normalized = text.startsWith('❌') ? text : `❌ ${text}`;
+        this.statusLockUntil = Date.now() + holdMs;
+        this.updateDataStatus(normalized, { force: true });
+        try {
+            if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+                alert(normalized);
+            }
+        } catch (_) {}
+    }
+
+    updateDataStatus(customMessage = '', options = {}) {
+        const force = Boolean(options?.force);
         const statusEl = document.getElementById('dataStatus');
         if (!statusEl) return;
+        const isLocked = Date.now() < this.statusLockUntil;
+        if (!force && isLocked) {
+            if (!customMessage) return;
+            if (!String(customMessage).startsWith('❌')) return;
+        }
         if (customMessage) {
             statusEl.textContent = customMessage;
             return;
