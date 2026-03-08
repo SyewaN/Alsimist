@@ -322,6 +322,15 @@ class App {
         return null;
     }
 
+    normalizeSaltForDb(value) {
+        if (!Number.isFinite(value)) return null;
+        const rounded = Math.round(value * 100) / 100;
+        if (Math.abs(rounded) > 999.99) {
+            return rounded > 0 ? 999.99 : -999.99;
+        }
+        return rounded;
+    }
+
     normalizeSensorReading(input) {
         if (!input || typeof input !== 'object') return null;
         const tdsRaw = this.parseNumeric(input.tds_raw ?? input.tdsRaw ?? input.tds ?? input.TDS ?? input.tdsValue ?? input.salinity ?? input.salt);
@@ -461,11 +470,12 @@ class App {
         const sicaklikValue = Number.isFinite(data?.temp)
             ? data.temp
             : (Number.isFinite(data?.sicaklik) ? data.sicaklik : null);
-        const saltValue = Number.isFinite(data?.tdsComp)
+        const saltRawValue = Number.isFinite(data?.tdsComp)
             ? data.tdsComp
             : (Number.isFinite(data?.tdsRaw)
                 ? data.tdsRaw
                 : (Number.isFinite(data?.salt) ? data.salt : null));
+        const saltValue = this.normalizeSaltForDb(saltRawValue);
         const sensorId = data?.sensorId || data?.sensor_id || ESP_SENSOR_ID;
         return {
             salt: saltValue,
